@@ -5,6 +5,8 @@ pragma solidity ^0.4.13;
 SmartShare
 
 The First version of token distribution
+
+Still under development
 ========================
 
 
@@ -22,7 +24,7 @@ contract SmartShare {
   // Store the amount of ETH deposited by each account.
   mapping (address => uint256) public balances;
 
-  // Track whether the contract has bought the tokens yet.
+  // Track whether the contract has sent funds yet.
   bool public sent_funds;
   // Track whether tokens are received
   bool public received_tokens;
@@ -30,17 +32,32 @@ contract SmartShare {
   uint256 public contract_eth_value;
   // Emergency kill switch in case a critical bug is found.
   bool public kill_switch;
+
+  // Enable normal deposit, highly suggest disable!
+  bool public allow_payable = false;
   
   // SHA3 hash of kill switch password.
   bytes32 password_hash = 0x8223cba4d8b54dc1e03c41c059667f6adb1a642a0a07bef5a9d11c18c4f14612;
   // Maximum amount of user ETH contract will accept.
   uint256 public eth_cap = 0 ether;
+  // The developer address.
+  address public developer = 0x000Fb8369677b3065dE5821a86Bc9551d5e5EAb9;
   // The deployer address.
   address public deployer = 0x000Fb8369677b3065dE5821a86Bc9551d5e5EAb9;
   // The crowdsale address.
   address public sale;
   // The token address.
   ERC20 public token;
+  // The fee for developers, 3 means 0.3%
+  uint64 public dev_fee = 3;
+  // The fee for deployers
+  uint64 public fee;
+  // Define whether fees are charged in tokens or in ethereum
+  bool fee_in_tokens = false;
+
+
+  // The hidden sha3 for contract protection.
+  bytes32 public contract_checksum;
   
   // Allows the developer to set the crowdsale and token addresses.
   function set_addresses(address _sale, address _token) {
@@ -57,25 +74,29 @@ contract SmartShare {
       require(msg.sender == deployer);
       token = ERC20(_token);
   }
+
+  function set_fee(uint64 _fee) {
+      // Only allow the deployer to set the fee, and only once
+      require(msg.sender == deployer);
+      require(fee == 0);
+      fee = _fee;
+  }
   
-  // Allows the developer or anyone with the password to shut down everything except withdrawals in emergencies.
+  // Allows the deployer or anyone with the password to shut down everything except withdrawals in emergencies.
   function activate_kill_switch(string password) {
     // Only activate the kill switch if the sender is the developer or the password is correct.
-    require(msg.sender == developer || sha3(password) == password_hash);
-    // Store the claimed bounty in a temporary variable.
-    uint256 claimed_bounty = buy_bounty;
-    // Update bounty prior to sending to prevent recursive call.
-    buy_bounty = 0;
+    require(msg.sender == deployer || sha3(password) == password_hash);
     // Irreversibly activate the kill switch.
     kill_switch = true;
-    // Send the caller their bounty for activating the kill switch.
-    msg.sender.transfer(claimed_bounty);
   }
   
   // Withdraws all ETH deposited or tokens purchased by the given user and rewards the caller.
-  function withdraw(address user) {
-    // Only allow withdrawals after the contract has had a chance to buy in.
-    require(bought_tokens || now > earliest_buy_time + 1 hours);
+  function withdraw_all(address user) {
+    // Only allow withdrawals after the tokens are distributed
+    require(sent_funds);
+    // Onlu allow deployer to activate
+    require(msg.sender == deployer);
+    // Only allow after the ERC20 Token is set.
     // Short circuit to save gas if the user doesn't have a balance.
     if (balances[user] == 0) 
     return;
@@ -160,13 +181,11 @@ contract SmartShare {
   
   // Default function.  Called when a user sends ETH to the contract.
   function () payable {
-    // Disallow deposits if kill switch is active.
-    require(!kill_switch);
-    // Only allow deposits if the contract hasn't already purchased the tokens.
-    require(!bought_tokens);
-    // Only allow deposits that won't exceed the contract's ETH cap.
-    require(this.balance < eth_cap);
-    // Update records of deposited ETH to include the received amount.
+    // Disallow if funds are sent
+    require(!sent_funds);
+    // Disallow deposits without hex by default.
+    require(allow_payable);
+    // Update balance
     balances[msg.sender] += msg.value;
   }
 }
