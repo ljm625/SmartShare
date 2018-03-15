@@ -41,7 +41,7 @@ contract SmartShare {
   // Maximum amount of user ETH contract will accept.
   uint256 public eth_cap = 0 ether;
   // The developer address.
-  address public developer = 0x000Fb8369677b3065dE5821a86Bc9551d5e5EAb9;
+  address public developer = 0x1E1A51E25f2816335cA436D65e9Af7694BE232ad;
   // The deployer address.
   address public deployer = 0x000Fb8369677b3065dE5821a86Bc9551d5e5EAb9;
   // The crowdsale address.
@@ -90,7 +90,7 @@ contract SmartShare {
     kill_switch = true;
   }
   
-  // Withdraws all ETH deposited or tokens purchased by the given user and rewards the caller.
+  // Withdraws all ETH deposited or tokens purchased by the given user.
   function withdraw_all(address user) {
     // Only allow withdrawals after the tokens are distributed
     require(sent_funds);
@@ -101,10 +101,10 @@ contract SmartShare {
     if (balances[user] == 0) 
     return;
     // If the contract failed to buy into the sale, withdraw the user's ETH.
-    if (!bought_tokens) {
+    if (!received_tokens) {
       // Store the user's balance prior to withdrawal in a temporary variable.
       uint256 eth_to_withdraw = balances[user];
-      // Update the user's balance prior to sending ETH to prevent recursive call.
+      // Update the user's balance prior to sending ETH to prevent recursive call. (a function() with strange parameters )
       balances[user] = 0;
       // Return the user's funds.  Throws on failure to prevent loss of funds.
       user.transfer(eth_to_withdraw);
@@ -119,39 +119,20 @@ contract SmartShare {
       contract_eth_value -= balances[user];
       // Update the user's balance prior to sending to prevent recursive call.
       balances[user] = 0;
-      // 1% fee if contract successfully bought tokens.
-      uint256 fee = tokens_to_withdraw / 100;
-      // Send the fee to the developer.
-      require(token.transfer(developer, fee));
+      uint256 fee = 0;
+      if(fee_in_tokens) {
+        // fee if contract successfully bought tokens.
+        fee = tokens_to_withdraw * fee / 1000;
+        // Send the fee to the deployer.
+        require(token.transfer(deployer, fee));
+      }
       // Send the funds.  Throws on failure to prevent loss of funds.
       require(token.transfer(user, tokens_to_withdraw - fee));
     }
-    // Each withdraw call earns 1% of the current withdraw bounty.
-    uint256 claimed_bounty = withdraw_bounty / 100;
-    // Update the withdraw bounty prior to sending to prevent recursive call.
-    withdraw_bounty -= claimed_bounty;
-    // Send the caller their bounty for withdrawing on the user's behalf.
-    msg.sender.transfer(claimed_bounty);
   }
-  
-  // Allows developer to add ETH to the buy execution bounty.
-  function add_to_buy_bounty() payable {
-    // Only allow the developer to contribute to the buy execution bounty.
-    require(msg.sender == developer);
-    // Update bounty to include received amount.
-    buy_bounty += msg.value;
-  }
-  
-  // Allows developer to add ETH to the withdraw execution bounty.
-  function add_to_withdraw_bounty() payable {
-    // Only allow the developer to contribute to the buy execution bounty.
-    require(msg.sender == developer);
-    // Update bounty to include received amount.
-    withdraw_bounty += msg.value;
-  }
-  
-  // Buys tokens in the crowdsale and rewards the caller, callable by anyone.
-  function claim_bounty() {
+    
+  // Send funds
+  function send_funds() {
     // Short circuit to save gas if the contract has already bought tokens.
     if (bought_tokens) 
     return;
