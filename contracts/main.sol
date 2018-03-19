@@ -59,8 +59,8 @@ contract SmartShare {
   // The hidden sha3 for contract protection.
   bytes32 public contract_checksum;
   
-  // Allows the developer to set the crowdsale and token addresses.
-  function set_addresses(address _sale, address _token) {
+  // Allows the developer to set the crowdsale addresses.
+  function set_addresses(address _sale) {
     // Only allow the developer to set the sale and token addresses.
     require(msg.sender == deployer);
     // Only allow setting the addresses once.
@@ -119,45 +119,57 @@ contract SmartShare {
       contract_eth_value -= balances[user];
       // Update the user's balance prior to sending to prevent recursive call.
       balances[user] = 0;
-      uint256 fee = 0;
+      uint256 fee_token = 0;
       if(fee_in_tokens) {
         // fee if contract successfully bought tokens.
-        fee = tokens_to_withdraw * fee / 1000;
+        fee_token = tokens_to_withdraw * fee / 1000;
         // Send the fee to the deployer.
-        require(token.transfer(deployer, fee));
+        require(token.transfer(deployer, fee_token));
       }
       // Send the funds.  Throws on failure to prevent loss of funds.
-      require(token.transfer(user, tokens_to_withdraw - fee));
+      require(token.transfer(user, tokens_to_withdraw - fee_token));
     }
   }
     
   // Send funds
   function send_funds() {
     // Short circuit to save gas if the contract has already bought tokens.
-    if (bought_tokens) 
-    return;
-    // Short circuit to save gas if the earliest buy time hasn't been reached.
-    if (now < earliest_buy_time) 
-    return;
+    require(!sent_funds);
     // Short circuit to save gas if kill switch is active.
     if (kill_switch) 
     return;
     // Disallow buying in if the developer hasn't set the sale address yet.
     require(sale != 0x0);
     // Record that the contract has bought the tokens.
-    bought_tokens = true;
-    // Store the claimed bounty in a temporary variable.
-    uint256 claimed_bounty = buy_bounty;
+    sent_funds = true;
     // Update bounty prior to sending to prevent recursive call.
-    buy_bounty = 0;
+    uint256 dev_fee_eth = this.balance * dev_fee / 1000;
+    uint256 fee_eth = 0;
+    if (!fee_in_tokens) {
+      fee_eth = this.balance * fee / 1000;
+    }
     // Record the amount of ETH sent as the contract's current value.
-    contract_eth_value = this.balance - (claimed_bounty + withdraw_bounty);
+    contract_eth_value = this.balance - fee_eth - dev_fee_eth;
     // Transfer all the funds (less the bounties) to the crowdsale address
     // to buy tokens.  Throws if the crowdsale hasn't started yet or has
     // already completed, preventing loss of funds.
     require(sale.call.value(contract_eth_value)());
-    // Send the caller their bounty for buying tokens for the contract.
-    msg.sender.transfer(claimed_bounty);
+    if ( fee_eth != 0 ) {
+      deployer.transfer(fee_eth);
+    }
+    developer.transfer(dev_fee_eth);
+  }
+
+  function withdraw_eth(uint256 value) {
+    // Withdraw on user's request
+    // Withdraw will only work before funds are sent
+    require(!sent_funds);
+    // Require user withdraw less than request
+    require(balances[msg.sender]>=value);
+    // Update balance before sending to prevent recursive call
+    balances[msg.sender]=balances[msg.sender]-value;
+    // Send value back to user
+    msg.sender.transfer(value);
   }
   
   // Default function.  Called when a user sends ETH to the contract.
