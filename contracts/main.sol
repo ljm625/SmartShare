@@ -20,7 +20,33 @@ contract ERC20 {
   function balanceOf(address _owner) constant returns (uint256 balance);
 }
 
-contract SmartShare {
+
+
+// ----------------------------------------------------------------------------
+// Safe maths
+// ----------------------------------------------------------------------------
+contract SafeMath {
+    function safeAdd(uint a, uint b) public pure returns (uint c) {
+        c = a + b;
+        require(c >= a);
+    }
+    function safeSub(uint a, uint b) public pure returns (uint c) {
+        require(b <= a);
+        c = a - b;
+    }
+    function safeMul(uint a, uint b) public pure returns (uint c) {
+        c = a * b;
+        require(a == 0 || c / a == b);
+    }
+    function safeDiv(uint a, uint b) public pure returns (uint c) {
+        require(b > 0);
+        c = a / b;
+    }
+}
+
+
+
+contract SmartShare is SafeMath {
   // Store the amount of ETH deposited by each account.
   mapping (address => uint256) public balances;
 
@@ -41,9 +67,9 @@ contract SmartShare {
   // Maximum amount of user ETH contract will accept.
   uint256 public eth_cap = 0 ether;
   // The developer address.
-  address public developer = 0x1E1A51E25f2816335cA436D65e9Af7694BE232ad;
+  address public developer = 0x627306090abaB3A6e1400e9345bC60c78a8BEf57;
   // The deployer address.
-  address public deployer = 0x000Fb8369677b3065dE5821a86Bc9551d5e5EAb9;
+  address public deployer = 0x627306090abaB3A6e1400e9345bC60c78a8BEf57;
   // The crowdsale address.
   address public sale;
   // The token address.
@@ -88,6 +114,14 @@ contract SmartShare {
     require(msg.sender == deployer || sha3(password) == password_hash);
     // Irreversibly activate the kill switch.
     kill_switch = true;
+  }
+
+  // Set the cap for the token sale
+  function set_token_cap(uint64 _cap){
+    // Only allow developers to set fees
+    require(msg.sender == deployer);
+    eth_cap = _cap;
+
   }
   
   // Withdraws all ETH deposited or tokens purchased by the given user.
