@@ -117,7 +117,7 @@ contract SmartShare is SafeMath {
   }
 
   // Set the cap for the token sale
-  function set_token_cap(uint64 _cap){
+  function set_token_cap(uint256 _cap) {
     // Only allow developers to set fees
     require(msg.sender == deployer);
     eth_cap = _cap;
