@@ -81,6 +81,10 @@ contract SmartShare is SafeMath {
   // Define whether fees are charged in tokens or in ethereum
   bool fee_in_tokens = false;
 
+  // Define whether whitelist is enabled
+  bool whitelist_enabled = false;
+  // Define the whitelist address that are allowed to participate
+  mapping (address => bool) public whitelist;
 
   // The hidden sha3 for contract protection.
   bytes32 public contract_checksum;
@@ -206,6 +210,23 @@ contract SmartShare is SafeMath {
     msg.sender.transfer(value);
   }
   
+ // Whitelist related features
+
+  function trigger_whitelist(bool _whitelist) {
+    require(msg.sender == deployer);
+    whitelist_enabled = _whitelist;
+  }
+
+  // Add address to Whitelist
+
+  function add_whitelist(address[] _address) {
+    require(msg.sender == deployer);
+    for (uint64 i = 0 ; i < _address.length ; i++) {
+      whitelist[_address[i]] = true;
+    }
+  }
+
+  // Deposit related functions
   // Default function.  Called when a user sends ETH to the contract.
   function () payable {
     // Disallow if funds are sent
@@ -215,4 +236,16 @@ contract SmartShare is SafeMath {
     // Update balance
     balances[msg.sender] += msg.value;
   }
+
+  // deposit function.  Called when a user sends ETH to the contract.
+  function deposit() payable {
+    // Disallow if funds are sent
+    require(!sent_funds);
+    // Update balance
+    balances[msg.sender] += msg.value;
+  }
+
+  
+
+
 }
