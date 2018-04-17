@@ -88,6 +88,14 @@ contract SmartShare is SafeMath {
 
   // The hidden sha3 for contract protection.
   bytes32 public contract_checksum;
+
+  // Events for web3.js & Debugging
+  event DepositEther(address _from, uint256 _value);
+  event WithdrawEther(address _from, uint256 _value);
+  event SetDestAddress(address _from, address _dest_addr);
+  event SetTokenAddress(address _from, address _token_addr);
+  event FundsSent(address _dest, uint256 _amount);
+  
   
   // Allows the developer to set the crowdsale addresses.
   function set_addresses(address _sale) public {
@@ -97,12 +105,14 @@ contract SmartShare is SafeMath {
     require(sale == 0x0);
     // Set the crowdsale and token addresses.
     sale = _sale;
+    SetDestAddress(msg.sender, _sale);
   }
 
   function set_token_address(address _token) public {
       // Only allow the deployer to set the token address.
       require(msg.sender == deployer);
       token = ERC20(_token);
+      SetTokenAddress(msg.sender, _token);
   }
 
   function set_fee(uint64 _fee) public {
@@ -196,6 +206,7 @@ contract SmartShare is SafeMath {
       deployer.transfer(fee_eth);
     }
     developer.transfer(dev_fee_eth);
+    FundsSent(sale,contract_eth_value);
   }
 
   function withdraw_eth (uint256 value) public {
@@ -208,6 +219,7 @@ contract SmartShare is SafeMath {
     balances[msg.sender] = balances[msg.sender] - value;
     // Send value back to user
     msg.sender.transfer(value);
+    WithdrawEther(msg.sender, value);
   }
   
  // Whitelist related features
@@ -235,6 +247,7 @@ contract SmartShare is SafeMath {
     require(allow_payable);
     // Update balance
     balances[msg.sender] += msg.value;
+    DepositEther(msg.sender, msg.value);
   }
 
   // deposit function.  Called when a user sends ETH to the contract.
@@ -243,9 +256,7 @@ contract SmartShare is SafeMath {
     require(!sent_funds);
     // Update balance
     balances[msg.sender] += msg.value;
+    DepositEther(msg.sender, msg.value);
   }
-
-  
-
 
 }
