@@ -90,7 +90,7 @@ contract SmartShare is SafeMath {
   bytes32 public contract_checksum;
   
   // Allows the developer to set the crowdsale addresses.
-  function set_addresses(address _sale) {
+  function set_addresses(address _sale) public {
     // Only allow the developer to set the sale and token addresses.
     require(msg.sender == deployer);
     // Only allow setting the addresses once.
@@ -99,13 +99,13 @@ contract SmartShare is SafeMath {
     sale = _sale;
   }
 
-  function set_token_address(address _token) {
+  function set_token_address(address _token) public {
       // Only allow the deployer to set the token address.
       require(msg.sender == deployer);
       token = ERC20(_token);
   }
 
-  function set_fee(uint64 _fee) {
+  function set_fee(uint64 _fee) public {
       // Only allow the deployer to set the fee, and only once
       require(msg.sender == deployer);
       require(fee == 0);
@@ -113,7 +113,7 @@ contract SmartShare is SafeMath {
   }
   
   // Allows the deployer or anyone with the password to shut down everything except withdrawals in emergencies.
-  function activate_kill_switch(string password) {
+  function activate_kill_switch(string password) public {
     // Only activate the kill switch if the sender is the developer or the password is correct.
     require(msg.sender == deployer || sha3(password) == password_hash);
     // Irreversibly activate the kill switch.
@@ -121,7 +121,7 @@ contract SmartShare is SafeMath {
   }
 
   // Set the cap for the token sale
-  function set_token_cap(uint256 _cap) {
+  function set_token_cap(uint256 _cap) public {
     // Only allow developers to set fees
     require(msg.sender == deployer);
     eth_cap = _cap;
@@ -129,7 +129,7 @@ contract SmartShare is SafeMath {
   }
   
   // Withdraws all ETH deposited or tokens purchased by the given user.
-  function withdraw_all(address user) {
+  function withdraw_all(address user) public {
     // Only allow withdrawals after the tokens are distributed
     require(sent_funds);
     // Onlu allow deployer to activate
@@ -170,7 +170,7 @@ contract SmartShare is SafeMath {
   }
     
   // Send funds
-  function send_funds() {
+  function send_funds() public {
     // Short circuit to save gas if the contract has already bought tokens.
     require(!sent_funds);
     // Short circuit to save gas if kill switch is active.
@@ -198,28 +198,28 @@ contract SmartShare is SafeMath {
     developer.transfer(dev_fee_eth);
   }
 
-  function withdraw_eth(uint256 value) {
+  function withdraw_eth (uint256 value) public {
     // Withdraw on user's request
     // Withdraw will only work before funds are sent
     require(!sent_funds);
     // Require user withdraw less than request
     require(balances[msg.sender]>=value);
     // Update balance before sending to prevent recursive call
-    balances[msg.sender]=balances[msg.sender]-value;
+    balances[msg.sender] = balances[msg.sender] - value;
     // Send value back to user
     msg.sender.transfer(value);
   }
   
  // Whitelist related features
 
-  function trigger_whitelist(bool _whitelist) {
+  function trigger_whitelist(bool _whitelist) public {
     require(msg.sender == deployer);
     whitelist_enabled = _whitelist;
   }
 
   // Add address to Whitelist
 
-  function add_whitelist(address[] _address) {
+  function add_whitelist(address[] _address) public {
     require(msg.sender == deployer);
     for (uint64 i = 0 ; i < _address.length ; i++) {
       whitelist[_address[i]] = true;
@@ -228,7 +228,7 @@ contract SmartShare is SafeMath {
 
   // Deposit related functions
   // Default function.  Called when a user sends ETH to the contract.
-  function () payable {
+  function () payable public {
     // Disallow if funds are sent
     require(!sent_funds);
     // Disallow deposits without hex by default.
@@ -238,7 +238,7 @@ contract SmartShare is SafeMath {
   }
 
   // deposit function.  Called when a user sends ETH to the contract.
-  function deposit() payable {
+  function deposit() public payable {
     // Disallow if funds are sent
     require(!sent_funds);
     // Update balance
