@@ -259,4 +259,6 @@ contract SmartShare is SafeMath {
     DepositEther(msg.sender, msg.value);
   }
 
+  
+
 }
