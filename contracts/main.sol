@@ -9,6 +9,18 @@ The First version of token distribution
 Still under development
 ========================
 
+Current feature list:
+
+1. Fund Raising
+2. Token Distribution
+3. Fee Raising
+4. Fee paid by tokens
+5. Whitelist
+
+Need further testing before proceeding.
+
+Individual Cap
+
 
 Special thanks to cintix
 
@@ -61,10 +73,7 @@ contract SmartShare is SafeMath {
 
   // Enable normal deposit, highly suggest disable!
   bool public allow_payable = false;
-  
-  // SHA3 hash of kill switch password.
-  bytes32 password_hash = 0x8223cba4d8b54dc1e03c41c059667f6adb1a642a0a07bef5a9d11c18c4f14612;
-  // Maximum amount of user ETH contract will accept.
+    // Maximum amount of user ETH contract will accept.
   uint256 public eth_cap = 0 ether;
   // The developer address.
   address public developer = 0x627306090abaB3A6e1400e9345bC60c78a8BEf57;
@@ -83,6 +92,9 @@ contract SmartShare is SafeMath {
 
   // Define whether whitelist is enabled
   bool whitelist_enabled = false;
+  // Define the max and min cap for each user.
+  uint256 ind_max_cap;
+  uint256 ind_min_cap;
   // Define the whitelist address that are allowed to participate
   mapping (address => bool) public whitelist;
 
@@ -121,11 +133,18 @@ contract SmartShare is SafeMath {
       require(fee == 0);
       fee = _fee;
   }
+
+  function set_min_max_cap(uint64 _min_cap, uint64 _max_cap) public {
+    // Only allow the deployer to change the min and max cap
+    require(msg.sender == deployer);
+    ind_min_cap = _min_cap;
+    ind_max_cap = _max_cap;
+  }
   
   // Allows the deployer or anyone with the password to shut down everything except withdrawals in emergencies.
   function activate_kill_switch(string password) public {
     // Only activate the kill switch if the sender is the developer or the password is correct.
-    require(msg.sender == deployer || sha3(password) == password_hash);
+    require(msg.sender == deployer);
     // Irreversibly activate the kill switch.
     kill_switch = true;
   }
@@ -255,10 +274,13 @@ contract SmartShare is SafeMath {
     // Disallow if funds are sent
     require(!sent_funds);
     // Update balance
+    if(ind_max_cap != 0) {
+     require(balances[msg.sender]+msg.value <= ind_max_cap); 
+    }
+    require(balances[msg.sender]+msg.value >= ind_min_cap);
+    
     balances[msg.sender] += msg.value;
     DepositEther(msg.sender, msg.value);
   }
-
-  
 
 }
