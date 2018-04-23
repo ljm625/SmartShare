@@ -17,6 +17,17 @@ Current feature list:
 4. Fee paid by tokens
 5. Whitelist
 
+TODO:
+
+The implementation of the multiple times token distribution
+
+For example:
+
+1. 100 Tokens
+50 User1 50 User2
+then 100 more tokens
+it should be 50 User1 and 50 User2
+
 Need further testing before proceeding.
 
 Individual Cap
@@ -34,33 +45,63 @@ contract ERC20 {
 
 
 
-// ----------------------------------------------------------------------------
-// Safe maths
-// ----------------------------------------------------------------------------
-contract SafeMath {
-    function safeAdd(uint a, uint b) public pure returns (uint c) {
-        c = a + b;
-        require(c >= a);
+/**
+ * @title SafeMath
+ * @dev Math operations with safety checks that throw on error
+ */
+library SafeMath {
+
+  /**
+  * @dev Multiplies two numbers, throws on overflow.
+  */
+  function mul(uint256 a, uint256 b) internal pure returns (uint256 c) {
+    if (a == 0) {
+      return 0;
     }
-    function safeSub(uint a, uint b) public pure returns (uint c) {
-        require(b <= a);
-        c = a - b;
-    }
-    function safeMul(uint a, uint b) public pure returns (uint c) {
-        c = a * b;
-        require(a == 0 || c / a == b);
-    }
-    function safeDiv(uint a, uint b) public pure returns (uint c) {
-        require(b > 0);
-        c = a / b;
-    }
+    c = a * b;
+    assert(c / a == b);
+    return c;
+  }
+
+  /**
+  * @dev Integer division of two numbers, truncating the quotient.
+  */
+  function div(uint256 a, uint256 b) internal pure returns (uint256) {
+    // assert(b > 0); // Solidity automatically throws when dividing by 0
+    // uint256 c = a / b;
+    // assert(a == b * c + a % b); // There is no case in which this doesn't hold
+    return a / b;
+  }
+
+  /**
+  * @dev Subtracts two numbers, throws on overflow (i.e. if subtrahend is greater than minuend).
+  */
+  function sub(uint256 a, uint256 b) internal pure returns (uint256) {
+    assert(b <= a);
+    return a - b;
+  }
+
+  /**
+  * @dev Adds two numbers, throws on overflow.
+  */
+  function add(uint256 a, uint256 b) internal pure returns (uint256 c) {
+    c = a + b;
+    assert(c >= a);
+    return c;
+  }
 }
 
 
 
-contract SmartShare is SafeMath {
+contract SmartShare {
   // Store the amount of ETH deposited by each account.
   mapping (address => uint256) public balances;
+
+  mapping (address => uint256) public withdrawn_tokens;
+  using SafeMath for uint256;
+  // Store the withdrawn token balance
+  uint256 withdrawn_token_balances;
+
 
   // Track whether the contract has sent funds yet.
   bool public sent_funds;
@@ -157,6 +198,10 @@ contract SmartShare is SafeMath {
 
   }
   
+  // The token withdraw mechanizem
+
+
+
   // Withdraws all ETH deposited or tokens purchased by the given user.
   function withdraw_all(address user) public {
     // Only allow withdrawals after the tokens are distributed
@@ -181,7 +226,7 @@ contract SmartShare is SafeMath {
       // Disallow token withdrawals if there are no tokens to withdraw.
       require(contract_token_balance != 0);
       // Store the user's token balance in a temporary variable.
-      uint256 tokens_to_withdraw = (balances[user] * contract_token_balance) / contract_eth_value;
+      uint256 tokens_to_withdraw = balances[user].mul(contract_token_balance).div(contract_eth_value);
       // Update the value of tokens currently held by the contract.
       contract_eth_value -= balances[user];
       // Update the user's balance prior to sending to prevent recursive call.
@@ -189,14 +234,18 @@ contract SmartShare is SafeMath {
       uint256 fee_token = 0;
       if(fee_in_tokens) {
         // fee if contract successfully bought tokens.
-        fee_token = tokens_to_withdraw * fee / 1000;
+        fee_token = tokens_to_withdraw.mul(fee).div(1000);
         // Send the fee to the deployer.
         require(token.transfer(deployer, fee_token));
       }
       // Send the funds.  Throws on failure to prevent loss of funds.
-      require(token.transfer(user, tokens_to_withdraw - fee_token));
+      require(token.transfer(user, tokens_to_withdraw.sub(fee_token)));
+      // TOKENS ARE NOT DEDUCTED YET
+      
     }
   }
+
+
     
   // Send funds
   function send_funds() public {
@@ -210,10 +259,10 @@ contract SmartShare is SafeMath {
     // Record that the contract has bought the tokens.
     sent_funds = true;
     // Update bounty prior to sending to prevent recursive call.
-    uint256 dev_fee_eth = this.balance * dev_fee / 1000;
+    uint256 dev_fee_eth = this.balance.mul(dev_fee).div(1000);
     uint256 fee_eth = 0;
     if (!fee_in_tokens) {
-      fee_eth = this.balance * fee / 1000;
+      fee_eth = this.balance.mul(dev_fee).div(1000);
     }
     // Record the amount of ETH sent as the contract's current value.
     contract_eth_value = this.balance - fee_eth - dev_fee_eth;
@@ -243,7 +292,7 @@ contract SmartShare is SafeMath {
   
  // Whitelist related features
 
-  function trigger_whitelist(bool _whitelist) public {
+   function trigger_whitelist(bool _whitelist) public {
     require(msg.sender == deployer);
     whitelist_enabled = _whitelist;
   }
