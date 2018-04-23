@@ -105,8 +105,6 @@ contract SmartShare {
 
   // Track whether the contract has sent funds yet.
   bool public sent_funds;
-  // Track whether tokens are received
-  bool public received_tokens;
   // Record ETH value of tokens currently held by contract.
   uint256 public contract_eth_value;
   // Emergency kill switch in case a critical bug is found.
@@ -204,8 +202,6 @@ contract SmartShare {
 
   // Withdraws all ETH deposited or tokens purchased by the given user.
   function withdraw_all(address user) public {
-    // Only allow withdrawals after the tokens are distributed
-    require(sent_funds);
     // Onlu allow deployer to activate
     require(msg.sender == deployer);
     // Only allow after the ERC20 Token is set.
@@ -213,13 +209,14 @@ contract SmartShare {
     if (balances[user] == 0) 
     return;
     // If the contract failed to buy into the sale, withdraw the user's ETH.
-    if (!received_tokens) {
+    if (!sent_funds) {
       // Store the user's balance prior to withdrawal in a temporary variable.
       uint256 eth_to_withdraw = balances[user];
       // Update the user's balance prior to sending ETH to prevent recursive call. (a function() with strange parameters )
       balances[user] = 0;
       // Return the user's funds.  Throws on failure to prevent loss of funds.
       user.transfer(eth_to_withdraw);
+      contract_eth_value = contract_eth_value.sub(eth_to_withdraw);
     } else {      // Withdraw the user's tokens if the contract has purchased them.
       // Retrieve current token balance of contract.
       uint256 contract_token_balance = token.balanceOf(address(this));
@@ -286,6 +283,7 @@ contract SmartShare {
     require(balances[msg.sender]>=value);
     // Update balance before sending to prevent recursive call
     balances[msg.sender] = balances[msg.sender] - value;
+    contract_eth_value = contract_eth_value.sub(value);
     // Send value back to user
     msg.sender.transfer(value);
     WithdrawEther(msg.sender, value);
@@ -321,7 +319,7 @@ contract SmartShare {
     require(balances[msg.sender]+msg.value >= ind_min_cap);
     require(eth_cap>=(contract_eth_value+msg.value));
     balances[msg.sender] += msg.value;
-    contract_eth_value.add(msg.value);
+    contract_eth_value = contract_eth_value.add(msg.value);
     DepositEther(msg.sender, msg.value);
   }
 
@@ -336,7 +334,7 @@ contract SmartShare {
     require(balances[msg.sender]+msg.value >= ind_min_cap);
     require(eth_cap>=(contract_eth_value+msg.value));
     balances[msg.sender] += msg.value;
-    contract_eth_value.add(msg.value);
+    contract_eth_value = contract_eth_value.add(msg.value);
     DepositEther(msg.sender, msg.value);
   }
 
