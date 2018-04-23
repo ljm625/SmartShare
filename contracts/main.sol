@@ -129,13 +129,13 @@ contract SmartShare {
   // The fee for deployers
   uint64 public fee;
   // Define whether fees are charged in tokens or in ethereum
-  bool fee_in_tokens = false;
+  bool public fee_in_tokens = false;
 
   // Define whether whitelist is enabled
-  bool whitelist_enabled = false;
+  bool public whitelist_enabled = false;
   // Define the max and min cap for each user.
-  uint256 ind_max_cap;
-  uint256 ind_min_cap;
+  uint256 public ind_max_cap;
+  uint256 public ind_min_cap;
   // Define the whitelist address that are allowed to participate
   mapping (address => bool) public whitelist;
 
@@ -198,7 +198,7 @@ contract SmartShare {
 
   }
   
-  // The token withdraw mechanizem
+  // The token withdraw mechanizm
 
 
 
@@ -226,9 +226,10 @@ contract SmartShare {
       // Disallow token withdrawals if there are no tokens to withdraw.
       require(contract_token_balance != 0);
       // Store the user's token balance in a temporary variable.
-      uint256 tokens_to_withdraw = balances[user].mul(contract_token_balance).div(contract_eth_value);
+      uint256 tokens_per_contribution = contract_token_balance.add(withdrawn_token_balances).mul(balances[user]).div(contract_eth_value);
+      uint256 tokens_to_withdraw = tokens_per_contribution.sub(withdrawn_tokens[user]);
       // Update the value of tokens currently held by the contract.
-      contract_eth_value -= balances[user];
+      // contract_eth_value -= balances[user];
       // Update the user's balance prior to sending to prevent recursive call.
       balances[user] = 0;
       uint256 fee_token = 0;
@@ -241,7 +242,7 @@ contract SmartShare {
       // Send the funds.  Throws on failure to prevent loss of funds.
       require(token.transfer(user, tokens_to_withdraw.sub(fee_token)));
       // TOKENS ARE NOT DEDUCTED YET
-      
+
     }
   }
 
@@ -314,7 +315,13 @@ contract SmartShare {
     // Disallow deposits without hex by default.
     require(allow_payable);
     // Update balance
+    if(ind_max_cap != 0) {
+     require(balances[msg.sender]+msg.value <= ind_max_cap); 
+    }
+    require(balances[msg.sender]+msg.value >= ind_min_cap);
+    require(eth_cap>=(contract_eth_value+msg.value));
     balances[msg.sender] += msg.value;
+    contract_eth_value.add(msg.value);
     DepositEther(msg.sender, msg.value);
   }
 
@@ -327,8 +334,9 @@ contract SmartShare {
      require(balances[msg.sender]+msg.value <= ind_max_cap); 
     }
     require(balances[msg.sender]+msg.value >= ind_min_cap);
-    
+    require(eth_cap>=(contract_eth_value+msg.value));
     balances[msg.sender] += msg.value;
+    contract_eth_value.add(msg.value);
     DepositEther(msg.sender, msg.value);
   }
 
