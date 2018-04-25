@@ -227,9 +227,12 @@ contract SmartShare {
       uint256 tokens_to_withdraw = tokens_per_contribution.sub(withdrawn_tokens[user]);
       // Update the value of tokens currently held by the contract.
       // contract_eth_value -= balances[user];
-      // Update the user's balance prior to sending to prevent recursive call.
-      balances[user] = 0;
       uint256 fee_token = 0;
+
+      withdrawn_tokens[user] = tokens_to_withdraw.add(withdrawn_tokens[user]);
+      withdrawn_token_balances = withdrawn_token_balances.add(tokens_to_withdraw);
+
+
       if(fee_in_tokens) {
         // fee if contract successfully bought tokens.
         fee_token = tokens_to_withdraw.mul(fee).div(1000);
@@ -237,9 +240,10 @@ contract SmartShare {
         require(token.transfer(deployer, fee_token));
       }
       // Send the funds.  Throws on failure to prevent loss of funds.
-      require(token.transfer(user, tokens_to_withdraw.sub(fee_token)));
-      // TOKENS ARE NOT DEDUCTED YET
 
+      require(token.transfer(user, tokens_to_withdraw.sub(fee_token)));
+
+      // TOKENS ARE NOT DEDUCTED YET
     }
   }
 
@@ -260,7 +264,7 @@ contract SmartShare {
     uint256 dev_fee_eth = this.balance.mul(dev_fee).div(1000);
     uint256 fee_eth = 0;
     if (!fee_in_tokens) {
-      fee_eth = this.balance.mul(dev_fee).div(1000);
+      fee_eth = this.balance.mul(fee).div(1000);
     }
     // Record the amount of ETH sent as the contract's current value.
     contract_eth_value = this.balance - fee_eth - dev_fee_eth;
