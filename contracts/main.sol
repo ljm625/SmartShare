@@ -267,11 +267,11 @@ contract SmartShare {
       fee_eth = this.balance.mul(fee).div(1000);
     }
     // Record the amount of ETH sent as the contract's current value.
-    contract_eth_value = this.balance - fee_eth - dev_fee_eth;
+    uint256 eth_for_contract = contract_eth_value - fee_eth - dev_fee_eth;
     // Transfer all the funds (less the bounties) to the crowdsale address
     // to buy tokens.  Throws if the crowdsale hasn't started yet or has
     // already completed, preventing loss of funds.
-    require(sale.call.value(contract_eth_value)());
+    require(sale.call.value(eth_for_contract)());
     if ( fee_eth != 0 ) {
       deployer.transfer(fee_eth);
     }
