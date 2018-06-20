@@ -95,7 +95,7 @@ library SafeMath {
 
 
 
-contract SmartShare {
+library SmartShare {
   // Store the amount of ETH deposited by each account.
   mapping (address => uint256) public balances;
 
